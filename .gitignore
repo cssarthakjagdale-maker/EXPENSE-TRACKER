@@ -1,0 +1,30 @@
+# Environments & Virtual Envs
+.venv/
+env/
+venv/
+ENV/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Local Database & SQLite temporary files
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Logs & Temporary Test Files
+*.log
+server_err.log
+server_out.log
+test_output.txt
+
+# Editor & OS Artifacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

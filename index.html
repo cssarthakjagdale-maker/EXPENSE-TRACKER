@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>PERSONAL EXPENSE TRACKER</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Source Serif 4', Georgia, serif;
+    background: #EDE7D9;
+    color: #211F1C;
+    margin: 0;
+    padding: 2rem 1.5rem 3rem;
+  }
+  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 1rem;
+    border-bottom: 2px solid #211F1C;
+    padding-bottom: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  header h1 { font-size: 30px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  header p { margin: 4px 0 0; font-size: 14px; color: #5C584E; }
+  .total-label { margin: 0; font-size: 12px; color: #5C584E; text-transform: uppercase; letter-spacing: 0.06em; text-align: right; }
+  .total-value { margin: 2px 0 0; font-size: 32px; font-weight: 600; color: #8B2E23; text-align: right; }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px;
+    background: #C7BEA8;
+    border: 1px solid #C7BEA8;
+    margin-bottom: 2rem;
+  }
+  .summary .cell { background: #F7F3E7; padding: 12px 16px; }
+  .summary .cell .label {
+    display: flex; align-items: center; gap: 6px;
+    color: #5C584E; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .summary .cell .value { font-size: 18px; margin-top: 4px; font-weight: 500; }
+
+  .grid { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap: 2rem; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+
+  h2.section {
+    font-size: 15px; font-weight: 600; margin: 0 0 10px;
+    text-transform: uppercase; letter-spacing: 0.04em; color: #1F4A3D;
+  }
+
+  .form-row { display: grid; gap: 8px; margin-bottom: 8px; }
+  .form-row.two { grid-template-columns: 1fr 1fr; }
+  .form-row.amt { grid-template-columns: 1fr 110px; }
+
+  input, select, button { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; }
+  input, select {
+    background: #F7F3E7;
+    border: 1px solid #C7BEA8;
+    border-radius: 2px;
+    padding: 8px 10px;
+    color: #211F1C;
+    outline: none;
+    width: 100%;
+  }
+  input:focus, select:focus { border-color: #1F4A3D; }
+  ::placeholder { color: #9B937E; }
+
+  #error { color: #8B2E23; font-size: 12px; margin: 0 0 8px; min-height: 14px; }
+
+  .add-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #1F4A3D; color: #F7F3E7; border: none; border-radius: 2px;
+    padding: 8px 14px; cursor: pointer;
+  }
+  .add-btn:hover { background: #24594A; }
+
+  .filters { display: flex; gap: 8px; margin-bottom: 10px; }
+  .filters select { flex: 1; }
+  .export-btn {
+    background: #8B2E23; color: #F7F3E7; border: none; border-radius: 2px;
+    padding: 8px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .export-btn:hover { background: #A13A2D; }
+
+  .table-wrap { border: 1px solid #C7BEA8; }
+  .table-head, .row {
+    display: grid;
+    grid-template-columns: 80px 1fr 90px 30px;
+    align-items: center;
+    padding: 8px 10px;
+  }
+  .table-head {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: #5C584E; background: #E4DCC8; border-bottom: 1px solid #C7BEA8;
+  }
+  .rows { max-height: 380px; overflow-y: auto; }
+  .row { border-bottom: 1px solid #DDD4BE; font-size: 13px; }
+  .row:hover { background: #E4DCC8; }
+  .row .date { font-size: 12px; color: #5C584E; }
+  .row .desc-cat { font-size: 11px; display: block; margin-top: 2px; }
+  .row .amount { text-align: right; color: #8B2E23; }
+  .row .del-btn {
+    background: none; border: none; cursor: pointer; color: #9B937E;
+    justify-self: end; font-size: 15px; line-height: 1;
+  }
+  .row .del-btn:hover { color: #8B2E23; }
+  .empty-msg { padding: 20px 10px; font-size: 13px; color: #5C584E; }
+
+  .chart-box { height: 220px; margin-bottom: 2rem; position: relative; }
+  .chart-box.trend { height: 200px; margin-bottom: 0; }
+
+  footer { margin-top: 2rem; font-size: 11px; color: #9B937E; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>PERSONAL EXPENSE TRACKER</h1>
+      <p id="subhead"></p>
+    </div>
+    <div>
+      <p class="total-label" id="totalLabel">Total, all entries</p>
+      <p class="total-value num" id="totalValue">₹0.00</p>
+    </div>
+  </header>
+
+  <div class="summary">
+    <div class="cell">
+      <div class="label">Entries shown</div>
+      <div class="value num" id="entriesShown">0</div>
+    </div>
+    <div class="cell">
+      <div class="label">Top category</div>
+      <div class="value num" id="topCategory">—</div>
+    </div>
+    <div class="cell">
+      <div class="label">Month over month</div>
+      <div class="value num" id="momChange">—</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <h2 class="section">New entry</h2>
+      <div class="form-row two">
+        <input type="date" id="fDate" />
+        <select id="fCategory"></select>
+      </div>
+      <div class="form-row amt">
+        <input type="text" id="fDesc" placeholder="Description" />
+        <input type="number" step="0.01" id="fAmount" placeholder="Amount" />
+      </div>
+      <p id="error"></p>
+      <button class="add-btn" id="addBtn">+ Add entry</button>
+
+      <div style="height: 1.5rem;"></div>
+
+      <div class="filters">
+        <select id="monthFilter"><option value="all">All months</option></select>
+        <select id="categoryFilter"><option value="all">All categories</option></select>
+        <button class="export-btn" id="exportBtn" type="button">Export CSV</button>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-head">
+          <span>Date</span><span>Description</span><span style="text-align:right;">Amount</span><span></span>
+        </div>
+        <div class="rows" id="rows"></div>
+      </div>
+    </div>
+
+    <div>
+      <h2 class="section">Spending by category</h2>
+      <div class="chart-box"><canvas id="catChart" role="img" aria-label="Bar chart of spending by category"></canvas></div>
+
+      <h2 class="section">Monthly trend</h2>
+      <div class="chart-box trend"><canvas id="trendChart" role="img" aria-label="Line chart of total spending by month"></canvas></div>
+    </div>
+  </div>
+
+  <footer>Entries are saved in a local SQLite database and persist across reloads.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+  const CATEGORIES = [
+    { name: "Food", ink: "#6B4A2E" },
+    { name: "Transport", ink: "#1F4A3D" },
+    { name: "Housing", ink: "#8B2E23" },
+    { name: "Utilities", ink: "#3D5A73" },
+    { name: "Entertainment", ink: "#6E4A87" },
+    { name: "Shopping", ink: "#A9812F" },
+    { name: "Health", ink: "#2F6B5E" },
+    { name: "Other", ink: "#5C584E" },
+  ];
+  const catInk = (name) => (CATEGORIES.find(c => c.name === name) || CATEGORIES[7]).ink;
+
+  let expenses = [];
+
+  async function loadExpenses() {
+    const res = await fetch("/api/expenses");
+    if (!res.ok) throw new Error("Failed to load expenses from the database.");
+    expenses = await res.json();
+  }
+
+  let monthFilter = "all";
+  let categoryFilter = "all";
+  let catChart, trendChart;
+
+  const currency = (n) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const monthLabel = (ym) => {
+    const [y, m] = ym.split("-");
+    return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  };
+
+  function getPreviousMonth(ym) {
+    const [y, m] = ym.split("-").map(Number);
+    const prevDate = new Date(y, m - 2, 1);
+    const py = prevDate.getFullYear();
+    const pm = String(prevDate.getMonth() + 1).padStart(2, "0");
+    return `${py}-${pm}`;
+  }
+
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function populateSelects() {
+    const fCat = document.getElementById("fCategory");
+    fCat.innerHTML = CATEGORIES.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join("");
+
+    const catFilterEl = document.getElementById("categoryFilter");
+    catFilterEl.innerHTML = `<option value="all">All categories</option>` +
+      CATEGORIES.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join("");
+    categoryFilter = CATEGORIES.some(c => c.name === categoryFilter) ? categoryFilter : "all";
+    catFilterEl.value = categoryFilter;
+
+    const months = Array.from(new Set(expenses.map(e => e.date.slice(0, 7)))).sort();
+    const monthFilterEl = document.getElementById("monthFilter");
+    monthFilterEl.innerHTML = `<option value="all">All months</option>` +
+      months.map(m => `<option value="${m}">${monthLabel(m)}</option>`).join("");
+    monthFilter = months.includes(monthFilter) ? monthFilter : "all";
+    monthFilterEl.value = monthFilter;
+  }
+
+  function getFiltered() {
+    return expenses
+      .filter(e => monthFilter === "all" || e.date.slice(0, 7) === monthFilter)
+      .filter(e => categoryFilter === "all" || e.category === categoryFilter)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  }
+
+  function csvCell(value) {
+    let str = String(value ?? "");
+    // Prevent CSV Formula Injection in spreadsheets
+    if (/^[=+@\-]/.test(str)) {
+      str = "'" + str;
+    }
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+
+  function exportCsv() {
+    const rows = getFiltered();
+    const total = rows.reduce((sum, expense) => sum + expense.amount, 0);
+    const csv = [
+      ["Date", "Category", "Description", "Amount"],
+      ...rows.map(e => [e.date, e.category, e.description, e.amount.toFixed(2)]),
+      ["", "", "Total", total.toFixed(2)],
+    ].map(row => row.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const filterName = monthFilter === "all" ? "all" : monthFilter;
+    link.href = url;
+    link.download = `household-ledger-${filterName}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function render() {
+    const filtered = getFiltered();
+    const total = filtered.reduce((s, e) => s + e.amount, 0);
+
+    const monthCount = new Set(expenses.map(e => e.date.slice(0, 7))).size;
+    document.getElementById("subhead").textContent =
+      `${expenses.length} entries recorded across ${monthCount} month${monthCount === 1 ? "" : "s"}`;
+    document.getElementById("totalLabel").textContent = monthFilter === "all" ? "Total, all entries" : `Total, ${monthLabel(monthFilter)}`;
+    document.getElementById("totalValue").textContent = currency(total);
+    document.getElementById("entriesShown").textContent = filtered.length;
+
+    // category breakdown (filtered)
+    const catMap = {};
+    filtered.forEach(e => {
+      const catName = CATEGORIES.some(c => c.name === e.category) ? e.category : "Other";
+      catMap[catName] = (catMap[catName] || 0) + e.amount;
+    });
+    const byCategory = CATEGORIES
+      .map(c => ({ name: c.name, amount: Math.round((catMap[c.name] || 0) * 100) / 100 }))
+      .filter(d => d.amount > 0);
+
+    const topCategory = byCategory.length
+      ? byCategory.reduce((a, b) => (b.amount > a.amount ? b : a))
+      : null;
+    document.getElementById("topCategory").textContent = topCategory ? topCategory.name : "—";
+
+    // monthly trend (all expenses, unfiltered)
+    const monthMap = {};
+    expenses.forEach(e => {
+      const ym = e.date.slice(0, 7);
+      monthMap[ym] = (monthMap[ym] || 0) + e.amount;
+    });
+    const monthKeys = Object.keys(monthMap).sort();
+    const byMonth = monthKeys.map(ym => ({ month: monthLabel(ym), amount: Math.round(monthMap[ym] * 100) / 100 }));
+
+    // Month over Month calculation
+    let momText = "—";
+    const targetYm = monthFilter !== "all" ? monthFilter : (monthKeys.length > 0 ? monthKeys[monthKeys.length - 1] : null);
+    if (targetYm) {
+      const prevYm = getPreviousMonth(targetYm);
+      if (prevYm in monthMap) {
+        const curr = monthMap[targetYm] || 0;
+        const prev = monthMap[prevYm];
+        if (prev !== 0) {
+          const delta = Math.round(((curr - prev) / prev) * 1000) / 10;
+          momText = `${delta > 0 ? "+" : ""}${delta}%`;
+        }
+      }
+    }
+    document.getElementById("momChange").textContent = momText;
+
+    // table rows
+    const rowsEl = document.getElementById("rows");
+    if (filtered.length === 0) {
+      rowsEl.innerHTML = `<p class="empty-msg">No entries for this filter.</p>`;
+    } else {
+      rowsEl.innerHTML = filtered.map(e => `
+        <div class="row">
+          <span class="date num">${escapeHtml(e.date.slice(5))}</span>
+          <span>${escapeHtml(e.description)}<span class="desc-cat" style="color:${escapeHtml(catInk(e.category))}">${escapeHtml(e.category)}</span></span>
+          <span class="amount num">${escapeHtml(e.amount.toFixed(2))}</span>
+          <button class="del-btn" data-id="${escapeHtml(e.id)}" aria-label="Delete entry">✕</button>
+        </div>
+      `).join("");
+      rowsEl.querySelectorAll(".del-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const errorEl = document.getElementById("error");
+          try {
+            const res = await fetch(`/api/expenses/${encodeURIComponent(btn.dataset.id)}`, { method: "DELETE" });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              throw new Error(body.error || "Could not delete the entry.");
+            }
+            errorEl.textContent = "";
+            await loadExpenses();
+            populateSelects();
+            render();
+          } catch (err) {
+            errorEl.textContent = err.message;
+          }
+        });
+      });
+    }
+
+    renderCharts(byCategory, byMonth);
+  }
+
+  function renderCharts(byCategory, byMonth) {
+    const catCtx = document.getElementById("catChart");
+    if (catChart) catChart.destroy();
+    catChart = new Chart(catCtx, {
+      type: "bar",
+      data: {
+        labels: byCategory.map(d => d.name),
+        datasets: [{
+          data: byCategory.map(d => d.amount),
+          backgroundColor: byCategory.map(d => catInk(d.name)),
+          borderRadius: 2,
+          barThickness: 18,
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: (ctx) => `₹${ctx.parsed.x.toFixed(2)}` }
+          }
+        },
+        scales: {
+          x: { grid: { color: "#DDD4BE" }, ticks: { color: "#5C584E", font: { size: 11 } } },
+          y: { grid: { display: false }, ticks: { color: "#211F1C", font: { size: 12 } } }
+        }
+      }
+    });
+
+    const trendCtx = document.getElementById("trendChart");
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(trendCtx, {
+      type: "line",
+      data: {
+        labels: byMonth.map(d => d.month),
+        datasets: [{
+          data: byMonth.map(d => d.amount),
+          borderColor: "#8B2E23",
+          backgroundColor: "#8B2E23",
+          pointRadius: 3,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: (ctx) => `₹${ctx.parsed.y.toFixed(2)}` }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: "#5C584E", font: { size: 11 } } },
+          y: { grid: { color: "#DDD4BE" }, ticks: { color: "#5C584E", font: { size: 11 } } }
+        }
+      }
+    });
+  }
+
+  document.getElementById("addBtn").addEventListener("click", async () => {
+    const date = document.getElementById("fDate").value;
+    const category = document.getElementById("fCategory").value;
+    const description = document.getElementById("fDesc").value.trim();
+    const amountStr = document.getElementById("fAmount").value;
+    const errorEl = document.getElementById("error");
+
+    if (!date || !description || !amountStr) {
+      errorEl.textContent = "Fill in the date, description, and amount to add an entry.";
+      return;
+    }
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+      errorEl.textContent = "Amount must be a positive number.";
+      return;
+    }
+    errorEl.textContent = "";
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, category, description, amount }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Could not save the entry.");
+      }
+      await loadExpenses();
+      document.getElementById("fDesc").value = "";
+      document.getElementById("fAmount").value = "";
+      populateSelects();
+      render();
+    } catch (err) {
+      errorEl.textContent = err.message;
+    }
+  });
+
+  document.getElementById("monthFilter").addEventListener("change", (e) => { monthFilter = e.target.value; render(); });
+  document.getElementById("categoryFilter").addEventListener("change", (e) => { categoryFilter = e.target.value; render(); });
+  document.getElementById("exportBtn").addEventListener("click", exportCsv);
+
+  (async function init() {
+    const today = new Date().toISOString().slice(0, 10);
+    const dateEl = document.getElementById("fDate");
+    if (dateEl && !dateEl.value) {
+      dateEl.value = today;
+    }
+
+    const errorEl = document.getElementById("error");
+    try {
+      await loadExpenses();
+    } catch (err) {
+      errorEl.textContent = err.message;
+    }
+    populateSelects();
+    render();
+  })();
+</script>
+</body>
+</html>
