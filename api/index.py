@@ -11,5 +11,11 @@ from server import LedgerRequestHandler, init_db
 # Initialize database schema in writable /tmp directory on Vercel
 init_db()
 
-# Vercel entrypoint handler
-handler = LedgerRequestHandler
+
+# Top-level entrypoint classes and variables for Vercel Serverless runtime
+class handler(LedgerRequestHandler):
+    pass
+
+
+app = handler
+application = handler

@@ -200,7 +200,7 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path).path
         if parsed_path in ("/", "/index.html"):
             self._send_file(INDEX_FILE, "text/html; charset=utf-8")
-        elif parsed_path == "/api/expenses":
+        elif parsed_path in ("/api/expenses", "/api/index.py", "/api") or parsed_path.endswith("/expenses"):
             conn = get_connection()
             try:
                 rows = conn.execute(
@@ -216,7 +216,7 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed_path = urlparse(self.path).path
-        if parsed_path != "/api/expenses":
+        if not (parsed_path in ("/api/expenses", "/api/index.py", "/api") or parsed_path.endswith("/expenses")):
             self.send_response(404)
             self.end_headers()
             return
@@ -328,3 +328,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# Top-level entrypoints for Vercel Serverless Functions
+class handler(LedgerRequestHandler):
+    pass
+
+app = handler
+application = handler
