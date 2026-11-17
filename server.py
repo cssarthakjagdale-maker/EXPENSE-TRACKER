@@ -95,7 +95,10 @@ def get_connection():
 def init_db():
     conn = get_connection()
     try:
-        conn.execute("PRAGMA journal_mode=WAL")
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+        except Exception:
+            pass
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS meta (
