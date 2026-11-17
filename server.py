@@ -46,7 +46,14 @@ load_dotenv(BASE_DIR / ".env")
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", 8000))
 DB_NAME = os.environ.get("DB_NAME", "ledger.db")
-DB_PATH = BASE_DIR / DB_NAME
+
+if os.environ.get("VERCEL"):
+    DB_PATH = Path("/tmp") / DB_NAME
+elif os.environ.get("DB_PATH"):
+    DB_PATH = Path(os.environ["DB_PATH"])
+else:
+    DB_PATH = BASE_DIR / DB_NAME
+
 INDEX_FILE = BASE_DIR / "index.html"
 
 ALLOWED_CATEGORIES = {
