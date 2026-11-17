@@ -1,0 +1,7 @@
+server.py
+tests/
+test_*.py
+scratch/
+.env*
+*.db
+*.log

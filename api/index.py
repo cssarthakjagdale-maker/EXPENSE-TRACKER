@@ -1,5 +1,4 @@
 import datetime
-import io
 import json
 import math
 import os
@@ -8,6 +7,7 @@ import sqlite3
 import tempfile
 import traceback
 import uuid
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
 # Database path in system temporary directory (writable on Vercel AWS Lambda /tmp)
@@ -92,73 +92,59 @@ def init_db():
         conn.close()
 
 
-def send_json(start_response, status_code: int, payload):
-    status_text = {
-        200: "200 OK",
-        201: "201 Created",
-        400: "400 Bad Request",
-        404: "404 Not Found",
-        500: "500 Internal Server Error",
-    }.get(status_code, f"{status_code} Status")
+class handler(BaseHTTPRequestHandler):
+    def _send_json(self, status: int, payload):
+        try:
+            body = json.dumps(payload, allow_nan=False).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.end_headers()
+            self.wfile.write(body)
+        except Exception:
+            traceback.print_exc()
 
-    body = json.dumps(payload, allow_nan=False).encode("utf-8")
-    headers = [
-        ("Content-Type", "application/json; charset=utf-8"),
-        ("Content-Length", str(len(body))),
-        ("Access-Control-Allow-Origin", "*"),
-        ("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS"),
-        ("Access-Control-Allow-Headers", "Content-Type"),
-    ]
-    start_response(status_text, headers)
-    return [body]
+    def do_OPTIONS(self):
+        self._send_json(200, {"status": "ok"})
 
-
-# WSGI standard entrypoint for Vercel Serverless
-def app(environ, start_response):
-    try:
-        method = environ.get("REQUEST_METHOD", "GET").upper()
-        raw_path = (
-            environ.get("HTTP_X_FORWARDED_PATH")
-            or environ.get("REQUEST_URI")
-            or environ.get("RAW_URI")
-            or environ.get("PATH_INFO")
-            or ""
-        )
-        path = raw_path.split("?")[0]
-
-        if method == "OPTIONS":
-            return send_json(start_response, 200, {"status": "ok"})
-
-        init_db()
-
-        # Handle GET requests (load expenses)
-        if method == "GET":
+    def do_GET(self):
+        try:
+            init_db()
             conn = get_connection()
             try:
                 rows = conn.execute(
                     "SELECT id, date, category, description, amount "
                     "FROM expenses ORDER BY date DESC, id DESC"
                 ).fetchall()
-                return send_json(start_response, 200, [dict(r) for r in rows])
+                self._send_json(200, [dict(r) for r in rows])
             finally:
                 conn.close()
+        except Exception as e:
+            traceback.print_exc()
+            self._send_json(500, {"error": str(e)})
 
-        # Handle POST requests (add expense)
-        elif method == "POST":
+    def do_POST(self):
+        try:
+            init_db()
+            length_hdr = self.headers.get("Content-Length") or self.headers.get("content-length")
             try:
-                content_length = int(environ.get("CONTENT_LENGTH", 0) or 0)
+                length = int(length_hdr) if length_hdr else 0
             except (ValueError, TypeError):
-                content_length = 0
+                length = 0
 
-            wsgi_input = environ.get("wsgi.input")
-            raw_data = wsgi_input.read(content_length) if (wsgi_input and content_length > 0) else b""
+            raw = self.rfile.read(length) if length > 0 else b""
             try:
-                data = json.loads(raw_data.decode("utf-8")) if raw_data else {}
+                data = json.loads(raw.decode("utf-8")) if raw else {}
             except Exception:
-                return send_json(start_response, 400, {"error": "Invalid JSON format."})
+                self._send_json(400, {"error": "Invalid JSON format."})
+                return
 
             if not isinstance(data, dict):
-                return send_json(start_response, 400, {"error": "Request body must be a JSON object."})
+                self._send_json(400, {"error": "Request body must be a JSON object."})
+                return
 
             date_val = data.get("date")
             category_val = data.get("category")
@@ -166,21 +152,25 @@ def app(environ, start_response):
             amount_raw = data.get("amount")
 
             if date_val is None or description_val is None or amount_raw is None:
-                return send_json(start_response, 400, {"error": "date, description and amount are required."})
+                self._send_json(400, {"error": "date, description and amount are required."})
+                return
 
             date = str(date_val).strip()
             description = str(description_val).strip()
             category = str(category_val).strip() if category_val is not None else "Other"
 
             if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
-                return send_json(start_response, 400, {"error": "date must be in YYYY-MM-DD format."})
+                self._send_json(400, {"error": "date must be in YYYY-MM-DD format."})
+                return
             try:
                 datetime.date.fromisoformat(date)
             except ValueError:
-                return send_json(start_response, 400, {"error": "date must be a valid calendar date."})
+                self._send_json(400, {"error": "date must be a valid calendar date."})
+                return
 
             if not description:
-                return send_json(start_response, 400, {"error": "description cannot be empty."})
+                self._send_json(400, {"error": "description cannot be empty."})
+                return
 
             if category not in ALLOWED_CATEGORIES:
                 category = "Other"
@@ -188,10 +178,12 @@ def app(environ, start_response):
             try:
                 amount = float(amount_raw)
             except (TypeError, ValueError):
-                return send_json(start_response, 400, {"error": "amount must be a valid number."})
+                self._send_json(400, {"error": "amount must be a valid number."})
+                return
 
             if math.isnan(amount) or math.isinf(amount) or amount <= 0:
-                return send_json(start_response, 400, {"error": "amount must be a positive number."})
+                self._send_json(400, {"error": "amount must be a positive number."})
+                return
 
             amount = round(amount, 2)
             new_id = "e" + uuid.uuid4().hex[:12]
@@ -207,8 +199,7 @@ def app(environ, start_response):
             finally:
                 conn.close()
 
-            return send_json(
-                start_response,
+            self._send_json(
                 201,
                 {
                     "id": new_id,
@@ -218,33 +209,43 @@ def app(environ, start_response):
                     "amount": amount,
                 },
             )
+        except Exception as e:
+            traceback.print_exc()
+            self._send_json(500, {"error": str(e)})
 
-        # Handle DELETE requests
-        elif method == "DELETE":
+    def do_DELETE(self):
+        try:
+            init_db()
+            raw_path = (
+                self.headers.get("x-matched-path")
+                or self.headers.get("x-forwarded-uri")
+                or self.path
+                or ""
+            )
+            path = raw_path.split("?")[0]
             match = re.search(r"/([a-zA-Z0-9_\-]+)/?$", path)
             expense_id = match.group(1) if match else None
             if not expense_id or expense_id in ("expenses", "api", "index.py", "index"):
-                return send_json(start_response, 400, {"error": "Missing expense ID."})
+                match = re.search(r"/([a-zA-Z0-9_\-]+)/?$", self.path.split("?")[0])
+                expense_id = match.group(1) if match else None
+
+            if not expense_id or expense_id in ("expenses", "api", "index.py", "index"):
+                self._send_json(400, {"error": "Missing expense ID."})
+                return
 
             conn = get_connection()
             try:
                 cur = conn.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
                 conn.commit()
                 if cur.rowcount == 0:
-                    return send_json(start_response, 404, {"error": "Expense not found."})
+                    self._send_json(404, {"error": "Expense not found."})
                 else:
-                    return send_json(start_response, 200, {"deleted": expense_id})
+                    self._send_json(200, {"deleted": expense_id})
             finally:
                 conn.close()
+        except Exception as e:
+            traceback.print_exc()
+            self._send_json(500, {"error": str(e)})
 
-        else:
-            return send_json(start_response, 404, {"error": "Method not allowed."})
-
-    except Exception as e:
-        traceback.print_exc()
-        return send_json(start_response, 500, {"error": str(e)})
-
-
-# Aliases for Vercel serverless runtime
-application = app
-handler = app
+    def log_message(self, format, *args):
+        pass

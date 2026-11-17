@@ -331,11 +331,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# Top-level entrypoints for Vercel Serverless Functions
-class handler(LedgerRequestHandler):
-    pass
-
-app = handler
-application = handler
