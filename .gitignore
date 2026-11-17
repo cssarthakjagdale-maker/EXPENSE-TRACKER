@@ -34,3 +34,9 @@ test_output.txt
 .idea/
 .DS_Store
 Thumbs.db
+# Neon CLI configuration
+.neon
+neon.ts
+package.json
+package-lock.json
+node_modules/

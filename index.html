@@ -127,9 +127,15 @@
       <h1>PERSONAL EXPENSE TRACKER</h1>
       <p id="subhead"></p>
     </div>
-    <div>
-      <p class="total-label" id="totalLabel">Total, all entries</p>
-      <p class="total-value num" id="totalValue">₹0.00</p>
+    <div style="display: flex; gap: 1.5rem; align-items: flex-end;">
+      <div id="userProfile" style="display: none; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 4px;">
+        <span id="userName" style="font-weight: 500; color: #211F1C;"></span>
+        <button id="logoutBtn" style="background: none; border: 1px solid #C7BEA8; padding: 3px 8px; font-size: 11px; cursor: pointer; color: #8B2E23; font-family: inherit; border-radius: 2px;">Sign out</button>
+      </div>
+      <div>
+        <p class="total-label" id="totalLabel">Total, all entries</p>
+        <p class="total-value num" id="totalValue">₹0.00</p>
+      </div>
     </div>
   </header>
 
@@ -204,10 +210,21 @@
   ];
   const catInk = (name) => (CATEGORIES.find(c => c.name === name) || CATEGORIES[7]).ink;
 
+  function getAuthHeaders(extra = {}) {
+    const token = localStorage.getItem("expense_token");
+    const headers = { ...extra };
+    if (token) headers["Authorization"] = "Bearer " + token;
+    return headers;
+  }
+
   let expenses = [];
 
   async function loadExpenses() {
-    const res = await fetch("/api/expenses");
+    const res = await fetch("/api/expenses", { headers: getAuthHeaders() });
+    if (res.status === 401) {
+      window.location.href = "/login.html";
+      return;
+    }
     if (!res.ok) throw new Error("Failed to load expenses from the database.");
     expenses = await res.json();
   }
@@ -361,7 +378,10 @@
         btn.addEventListener("click", async () => {
           const errorEl = document.getElementById("error");
           try {
-            const res = await fetch(`/api/expenses/${encodeURIComponent(btn.dataset.id)}`, { method: "DELETE" });
+            const res = await fetch(`/api/expenses/${encodeURIComponent(btn.dataset.id)}`, {
+              method: "DELETE",
+              headers: getAuthHeaders()
+            });
             if (!res.ok) {
               const body = await res.json().catch(() => ({}));
               throw new Error(body.error || "Could not delete the entry.");
@@ -462,9 +482,13 @@
     try {
       const res = await fetch("/api/expenses", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ date, category, description, amount }),
       });
+      if (res.status === 401) {
+        window.location.href = "/login.html";
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "Could not save the entry.");
@@ -483,7 +507,37 @@
   document.getElementById("categoryFilter").addEventListener("change", (e) => { categoryFilter = e.target.value; render(); });
   document.getElementById("exportBtn").addEventListener("click", exportCsv);
 
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", headers: getAuthHeaders() });
+    } catch (err) {}
+    localStorage.removeItem("expense_token");
+    localStorage.removeItem("expense_user");
+    window.location.href = "/login.html";
+  });
+
   (async function init() {
+    // Check authentication
+    try {
+      const authRes = await fetch("/api/auth/me", { headers: getAuthHeaders() });
+      if (!authRes.ok) {
+        window.location.href = "/login.html";
+        return;
+      }
+      const authData = await authRes.json();
+      if (authData && authData.user) {
+        const prof = document.getElementById("userProfile");
+        const nameEl = document.getElementById("userName");
+        if (prof && nameEl) {
+          nameEl.textContent = authData.user.username || authData.user.email;
+          prof.style.display = "flex";
+        }
+      }
+    } catch (err) {
+      window.location.href = "/login.html";
+      return;
+    }
+
     const today = new Date().toISOString().slice(0, 10);
     const dateEl = document.getElementById("fDate");
     if (dateEl && !dateEl.value) {

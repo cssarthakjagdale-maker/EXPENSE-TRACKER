@@ -2,6 +2,11 @@ server.py
 tests/
 test_*.py
 scratch/
+migrate.py
+neon.ts
+package.json
+package-lock.json
+node_modules/
 .env*
 *.db
 *.log

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Login — PERSONAL EXPENSE TRACKER</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Source Serif 4', Georgia, serif;
+    background: #EDE7D9;
+    color: #211F1C;
+    margin: 0;
+    padding: 2rem 1.5rem 3rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+  .card {
+    background: #F7F3E7;
+    border: 1px solid #C7BEA8;
+    box-shadow: 0 4px 16px rgba(33, 31, 28, 0.06);
+    width: 100%;
+    max-width: 420px;
+    padding: 2.25rem 2rem;
+  }
+
+  .title-group {
+    border-bottom: 2px solid #211F1C;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+  .title-group h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .title-group p {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #5C584E;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #DDD4BE;
+  }
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: #5C584E;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .tab-btn.active {
+    color: #211F1C;
+    border-bottom-color: #8B2E23;
+    font-weight: 600;
+  }
+
+  .form-group {
+    margin-bottom: 1.25rem;
+  }
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #5C584E;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 14px;
+    background: #FFFDF8;
+    border: 1px solid #C7BEA8;
+    color: #211F1C;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .form-group input:focus {
+    border-color: #8B2E23;
+  }
+
+  .submit-btn {
+    width: 100%;
+    background: #1F4D36;
+    color: #F7F3E7;
+    border: 1px solid #143525;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    margin-top: 0.5rem;
+  }
+  .submit-btn:hover {
+    background: #183D2B;
+  }
+  .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .error-msg {
+    color: #8B2E23;
+    font-size: 12px;
+    margin-top: 1rem;
+    min-height: 1.2em;
+    text-align: center;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="title-group">
+    <h1>PERSONAL EXPENSE TRACKER</h1>
+    <p>Sign in to access your private ledger</p>
+  </div>
+
+  <div class="tabs">
+    <button type="button" class="tab-btn active" id="tabLogin" onclick="setMode('login')">Sign In</button>
+    <button type="button" class="tab-btn" id="tabSignup" onclick="setMode('signup')">Create Account</button>
+  </div>
+
+  <form id="authForm" onsubmit="handleSubmit(event)">
+    <div class="form-group" id="grpUsername" style="display: none;">
+      <label for="fUsername">Your Name or Handle</label>
+      <input type="text" id="fUsername" placeholder="e.g. Sarthak" autocomplete="name" />
+    </div>
+
+    <div class="form-group">
+      <label for="fEmail">Email Address</label>
+      <input type="email" id="fEmail" required placeholder="you@example.com" autocomplete="email" />
+    </div>
+
+    <div class="form-group">
+      <label for="fPassword">Password</label>
+      <input type="password" id="fPassword" required minlength="6" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+
+    <button type="submit" class="submit-btn" id="btnSubmit">Sign In</button>
+    <div class="error-msg" id="errMsg"></div>
+  </form>
+</div>
+
+<script>
+  let mode = "login";
+
+  function setMode(m) {
+    mode = m;
+    const tabLogin = document.getElementById("tabLogin");
+    const tabSignup = document.getElementById("tabSignup");
+    const grpUsername = document.getElementById("grpUsername");
+    const fUsername = document.getElementById("fUsername");
+    const btnSubmit = document.getElementById("btnSubmit");
+    const errMsg = document.getElementById("errMsg");
+
+    errMsg.textContent = "";
+    if (mode === "login") {
+      tabLogin.classList.add("active");
+      tabSignup.classList.remove("active");
+      grpUsername.style.display = "none";
+      fUsername.required = false;
+      btnSubmit.textContent = "Sign In";
+    } else {
+      tabSignup.classList.add("active");
+      tabLogin.classList.remove("active");
+      grpUsername.style.display = "block";
+      fUsername.required = true;
+      btnSubmit.textContent = "Create Account & Sign In";
+    }
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const errMsg = document.getElementById("errMsg");
+    const btnSubmit = document.getElementById("btnSubmit");
+    const email = document.getElementById("fEmail").value.trim();
+    const password = document.getElementById("fPassword").value;
+    const username = document.getElementById("fUsername").value.trim();
+
+    errMsg.textContent = "";
+    btnSubmit.disabled = true;
+
+    try {
+      const endpoint = mode === "signup" ? "/api/auth/signup" : "/api/auth/login";
+      const payload = { email, password };
+      if (mode === "signup") payload.username = username || email.split("@")[0];
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Authentication failed.");
+      }
+
+      // Store token in localStorage as backup for browsers with third-party cookie restrictions
+      if (data.token) {
+        localStorage.setItem("expense_token", data.token);
+        localStorage.setItem("expense_user", JSON.stringify(data.user || {}));
+      }
+
+      // Redirect to main dashboard
+      window.location.href = "/";
+    } catch (err) {
+      errMsg.textContent = err.message || "An error occurred. Please try again.";
+      btnSubmit.disabled = false;
+    }
+  }
+
+  // If already authenticated, redirect to home
+  (async function checkExisting() {
+    try {
+      const token = localStorage.getItem("expense_token");
+      const headers = token ? { "Authorization": "Bearer " + token } : {};
+      const res = await fetch("/api/auth/me", { headers });
+      if (res.ok) {
+        window.location.href = "/";
+      }
+    } catch (err) {}
+  })();
+</script>
+</body>
+</html>
