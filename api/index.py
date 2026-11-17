@@ -4,13 +4,16 @@ import math
 import os
 import re
 import sqlite3
+import tempfile
 import uuid
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
 
-# On Vercel Serverless, /tmp is the only writable filesystem
-DB_PATH = Path("/tmp") / os.environ.get("DB_NAME", "ledger.db")
+# Use system temporary directory (cross-platform, writable on Vercel AWS Lambda /tmp)
+TMP_DIR = Path(tempfile.gettempdir())
+DB_NAME = os.environ.get("DB_NAME", "ledger.db")
+DB_PATH = TMP_DIR / DB_NAME
 
 ALLOWED_CATEGORIES = {
     "Food",
@@ -41,18 +44,20 @@ SEED_EXPENSES = [
 
 
 def get_connection():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode=MEMORY")
+        conn.execute("PRAGMA synchronous=OFF")
+    except Exception:
+        pass
     return conn
 
 
 def init_db():
     conn = get_connection()
     try:
-        try:
-            conn.execute("PRAGMA journal_mode=WAL")
-        except Exception:
-            pass
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS meta (
