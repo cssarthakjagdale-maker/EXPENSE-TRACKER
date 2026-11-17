@@ -354,8 +354,8 @@ class handler(BaseHTTPRequestHandler):
                     (user_id, email, username, pw_hash, salt),
                 )
 
-                # Seed sample expenses for new user
-                seed_user_expenses(db, user_id)
+                # New users start with a clean slate (0 entries)
+                # seed_user_expenses(db, user_id)
 
                 # Create session token
                 token = secrets.token_hex(32)
