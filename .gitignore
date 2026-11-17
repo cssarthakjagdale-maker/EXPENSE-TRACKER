@@ -4,6 +4,12 @@ env/
 venv/
 ENV/
 
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*
+!.env.example
+
 # Python Cache & Bytecode
 __pycache__/
 *.py[cod]

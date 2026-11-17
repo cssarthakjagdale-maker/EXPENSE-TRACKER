@@ -20,10 +20,34 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+def load_dotenv(env_path: Path):
+    """Simple, dependency-free .env file loader."""
+    if not env_path.is_file():
+        return
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, val = line.split("=", 1)
+                    key = key.strip()
+                    val = val.strip().strip("\"'").strip()
+                    if key and key not in os.environ:
+                        os.environ[key] = val
+    except Exception:
+        pass
+
+
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "ledger.db"
-INDEX_FILE = BASE_DIR / "index.html"
+load_dotenv(BASE_DIR / ".env")
+
+HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", 8000))
+DB_NAME = os.environ.get("DB_NAME", "ledger.db")
+DB_PATH = BASE_DIR / DB_NAME
+INDEX_FILE = BASE_DIR / "index.html"
 
 ALLOWED_CATEGORIES = {
     "Food",
@@ -284,8 +308,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
 
 def main():
     init_db()
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), LedgerRequestHandler)
-    print(f"The Household Ledger is running: http://localhost:{PORT}")
+    server = ThreadingHTTPServer((HOST, PORT), LedgerRequestHandler)
+    print(f"The Household Ledger is running: http://{HOST}:{PORT}")
     print(f"SQLite database file: {DB_PATH}")
     try:
         server.serve_forever()
